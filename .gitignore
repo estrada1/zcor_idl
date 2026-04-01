@@ -8,3 +8,10 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Data files (large, downloaded via download_data.sh)
+data/raw/
+data/processed/
+
+# Model artifacts
+models/
