@@ -8,6 +8,9 @@ Produces:
   4. SLD distribution (positive vs control)
   5. Cross-validation AUC summary
   6. LR+ vs LR- operating characteristics
+  7. Calibration (reliability diagram)
+  8. Subgroup analysis (AUC by sex and age group)
+  9. Ablation study (AUC by feature group)
 """
 
 import numpy as np
@@ -416,6 +419,188 @@ def plot_operating_characteristics(X, y, model):
     print(f"  Saved {path}")
 
 
+def plot_calibration(X, y, model):
+    """Plot reliability diagram (calibration curve)."""
+    from sklearn.model_selection import train_test_split as _tts
+    from evaluate import calibration_analysis
+
+    _, X_test, _, y_test = _tts(X, y, test_size=0.25, stratify=y, random_state=42)
+    y_scores = model.predict(X_test)
+
+    cal = calibration_analysis(y_test, y_scores, n_bins=10)
+    frac = cal["fraction_of_positives"]
+    pred = cal["mean_predicted_value"]
+    counts = cal["bin_counts"]
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+
+    # Reliability diagram
+    # Only plot bins with data
+    has_data = [c > 0 for c in counts]
+    x_pts = [p for p, h in zip(pred, has_data) if h]
+    y_pts = [f for f, h in zip(frac, has_data) if h]
+
+    ax1.plot([0, 1], [0, 1], "k--", lw=1.5, alpha=0.5, label="Perfect calibration")
+    ax1.plot(x_pts, y_pts, "o-", color=C_POS, lw=2, ms=8,
+             markeredgecolor="white", markeredgewidth=1.5, label="ZCoR-IPF")
+    ax1.fill_between(x_pts, x_pts, y_pts, alpha=0.15, color=C_POS)
+    ax1.text(0.05, 0.88,
+             f"ECE = {cal['ece']:.4f}\nMCE = {cal['mce']:.4f}",
+             transform=ax1.transAxes, fontsize=11,
+             bbox=dict(boxstyle="round,pad=0.4", facecolor="white", alpha=0.8))
+    ax1.set_xlabel("Mean Predicted Probability", fontsize=12)
+    ax1.set_ylabel("Fraction of Positives", fontsize=12)
+    ax1.set_title("Reliability Diagram (Calibration)", fontsize=14, fontweight="bold")
+    ax1.legend(fontsize=10)
+    ax1.set_xlim(-0.02, 1.02)
+    ax1.set_ylim(-0.02, 1.02)
+    ax1.grid(True, alpha=0.3)
+
+    # Histogram of predicted probabilities
+    ax2.hist(y_scores[y_test == 0], bins=50, color=C_CTRL, alpha=0.7,
+             density=True, label=f"Control (n={(y_test==0).sum():,})")
+    ax2.hist(y_scores[y_test == 1], bins=20, color=C_POS, alpha=0.8,
+             density=True, label=f"Positive (n={(y_test==1).sum():,})")
+    ax2.set_xlabel("Predicted Probability", fontsize=12)
+    ax2.set_ylabel("Density", fontsize=12)
+    ax2.set_title("Score Distribution by Label", fontsize=14, fontweight="bold")
+    ax2.legend(fontsize=10)
+    ax2.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    path = os.path.join(PLOTS_DIR, "07_calibration.png")
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved {path}")
+
+
+def plot_subgroup_analysis(X, y, metadata, model):
+    """Bar chart of AUC by sex and age group."""
+    from sklearn.model_selection import StratifiedShuffleSplit
+    from evaluate import subgroup_analysis
+
+    sss = StratifiedShuffleSplit(n_splits=1, test_size=0.25, random_state=42)
+    _, test_idx = next(sss.split(X, y))
+    X_test = X[test_idx]
+    y_test = y[test_idx]
+    meta_test = [metadata[i] for i in test_idx]
+
+    y_scores = model.predict(X_test)
+    sg = subgroup_analysis(y_test, y_scores, meta_test)
+
+    # Arrange subgroups in display order
+    sex_groups  = ["sex_M", "sex_F"]
+    age_groups  = ["age_45_54", "age_55_64", "age_65_74", "age_75_plus"]
+    all_groups  = sex_groups + age_groups + ["overall"]
+    labels      = ["Male", "Female", "45–54", "55–64", "65–74", "75+", "Overall"]
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+
+    def _bar_group(ax, groups, group_labels, metric, ylabel, title, ylim=(0, 1.05)):
+        vals, errs, colors_g = [], [], []
+        for g, lbl in zip(groups, group_labels):
+            r = sg.get(g, {})
+            if r.get("skipped") or metric not in r:
+                vals.append(0); errs.append(0); colors_g.append("#cccccc")
+            else:
+                vals.append(r[metric]); errs.append(0)
+                colors_g.append(C_POS if g == "overall" else C_CTRL)
+        x = range(len(vals))
+        bars = ax.bar(x, vals, color=colors_g, edgecolor="white", linewidth=1, alpha=0.85)
+        ax.set_xticks(list(x))
+        ax.set_xticklabels(group_labels, fontsize=10)
+        ax.set_ylabel(ylabel, fontsize=12)
+        ax.set_title(title, fontsize=13, fontweight="bold")
+        ax.set_ylim(*ylim)
+        for bar, v in zip(bars, vals):
+            if v > 0:
+                ax.text(bar.get_x() + bar.get_width() / 2, v + 0.01,
+                        f"{v:.3f}", ha="center", va="bottom", fontsize=9)
+        ax.grid(True, axis="y", alpha=0.3)
+        # Annotate N
+        for i, g in enumerate(groups):
+            r = sg.get(g, {})
+            n = r.get("n", 0)
+            np_ = r.get("n_pos", 0)
+            ax.text(i, -0.06, f"n={n}\n({np_}+)", ha="center", va="top",
+                    fontsize=8, color="gray", transform=ax.get_xaxis_transform())
+
+    _bar_group(ax1, all_groups, labels, "auc", "AUC",
+               "AUC by Subgroup", ylim=(0.85, 1.02))
+    _bar_group(ax2, all_groups, labels, "sensitivity",
+               "Sensitivity @ 95% specificity",
+               "Sensitivity by Subgroup (@ 95% spec)", ylim=(0, 1.1))
+
+    plt.tight_layout()
+    path = os.path.join(PLOTS_DIR, "08_subgroup_analysis.png")
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved {path}")
+
+
+def plot_ablation(X, y, feature_names, model):
+    """Grouped bar chart of CV AUC by feature set."""
+    from sklearn.model_selection import train_test_split as _tts
+    from evaluate import ablation_study
+
+    X_train, _, y_train, _ = _tts(X, y, test_size=0.25, stratify=y, random_state=42)
+
+    print("    (Running 3-fold CV ablation — may take a minute...)")
+    results = ablation_study(X_train, y_train, X_train, y_train,
+                             feature_names, n_folds=3)
+
+    levels = [r["level"] for r in results]
+    means  = [r["cv_auc_mean"] for r in results]
+    stds   = [r["cv_auc_std"] for r in results]
+    n_feats = [r["n_features"] for r in results]
+
+    # Short display labels
+    short = ["SLD", "SLD\n+LLK", "SLD+LLK\n+P-score",
+             "SLD+LLK\nP-score\n+Seq", "Full"]
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+
+    x = range(len(means))
+    colors_ab = [C_CTRL] * (len(means) - 1) + [C_POS]
+    bars = ax1.bar(x, means, yerr=stds, capsize=5,
+                   color=colors_ab, edgecolor="white", linewidth=1, alpha=0.85,
+                   error_kw=dict(ecolor="gray", lw=1.5))
+    ax1.set_xticks(list(x))
+    ax1.set_xticklabels(short, fontsize=9)
+    ax1.set_ylabel("CV AUC (3-fold)", fontsize=12)
+    ax1.set_title("Ablation Study: Feature Group Contribution",
+                  fontsize=13, fontweight="bold")
+    ymin = max(0.5, min(means) - 0.05)
+    ax1.set_ylim(ymin, min(1.01, max(means) + 0.05))
+    for bar, m, s in zip(bars, means, stds):
+        ax1.text(bar.get_x() + bar.get_width() / 2, m + s + 0.003,
+                 f"{m:.4f}", ha="center", va="bottom", fontsize=9)
+    ax1.grid(True, axis="y", alpha=0.3)
+
+    # Marginal gain
+    gains = [means[0]] + [means[i] - means[i - 1] for i in range(1, len(means))]
+    gain_colors = [C_ACCENT if g > 0 else "#cccccc" for g in gains]
+    ax2.bar(x, gains, color=gain_colors, edgecolor="white", linewidth=1, alpha=0.85)
+    ax2.set_xticks(list(x))
+    ax2.set_xticklabels(short, fontsize=9)
+    ax2.set_ylabel("Marginal AUC gain", fontsize=12)
+    ax2.set_title("Marginal Contribution per Feature Group",
+                  fontsize=13, fontweight="bold")
+    ax2.axhline(y=0, color="black", lw=0.8)
+    for i, (bar, g) in enumerate(zip(ax2.patches, gains)):
+        ax2.text(bar.get_x() + bar.get_width() / 2,
+                 g + (0.001 if g >= 0 else -0.003),
+                 f"{g:+.4f}", ha="center",
+                 va="bottom" if g >= 0 else "top", fontsize=9)
+    ax2.grid(True, axis="y", alpha=0.3)
+
+    plt.tight_layout()
+    path = os.path.join(PLOTS_DIR, "09_ablation_study.png")
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved {path}")
+
+
 def main():
     print("Generating result plots...")
     print("=" * 50)
@@ -423,23 +608,32 @@ def main():
     X, y, feature_names, metadata, results, model = load_data()
     print(f"  Loaded {len(y)} patients, {X.shape[1]} features")
 
-    print("\n[1/6] ROC curves...")
+    print("\n[1/9] ROC curves...")
     plot_roc_curves(X, y, metadata, model)
 
-    print("[2/6] Precision-recall curve...")
+    print("[2/9] Precision-recall curve...")
     plot_precision_recall(X, y, model)
 
-    print("[3/6] Feature importance...")
+    print("[3/9] Feature importance...")
     plot_feature_importance()
 
-    print("[4/6] SLD distribution...")
+    print("[4/9] SLD distribution...")
     plot_sld_distribution()
 
-    print("[5/6] CV summary & paper comparison...")
+    print("[5/9] CV summary & paper comparison...")
     plot_cv_summary(results)
 
-    print("[6/6] Operating characteristics...")
+    print("[6/9] Operating characteristics...")
     plot_operating_characteristics(X, y, model)
+
+    print("[7/9] Calibration...")
+    plot_calibration(X, y, model)
+
+    print("[8/9] Subgroup analysis...")
+    plot_subgroup_analysis(X, y, metadata, model)
+
+    print("[9/9] Ablation study...")
+    plot_ablation(X, y, feature_names, model)
 
     print(f"\nAll plots saved to {PLOTS_DIR}/")
 
