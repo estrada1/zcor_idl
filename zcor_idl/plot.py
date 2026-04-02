@@ -258,7 +258,7 @@ def plot_sld_distribution():
     # Import category names
     import sys
     sys.path.insert(0, ".")
-    from icd9_categories import get_category_name
+    from zcor_idl.icd9 import get_category_name
 
     top_cats = np.argsort(np.abs(separation))[::-1][:20]
     cat_names = [get_category_name(c) for c in top_cats][::-1]
@@ -422,7 +422,7 @@ def plot_operating_characteristics(X, y, model):
 def plot_calibration(X, y, model):
     """Plot reliability diagram (calibration curve)."""
     from sklearn.model_selection import train_test_split as _tts
-    from evaluate import calibration_analysis
+    from zcor_idl.evaluate import calibration_analysis
 
     _, X_test, _, y_test = _tts(X, y, test_size=0.25, stratify=y, random_state=42)
     y_scores = model.predict(X_test)
@@ -477,7 +477,7 @@ def plot_calibration(X, y, model):
 def plot_subgroup_analysis(X, y, metadata, model):
     """Bar chart of AUC by sex and age group."""
     from sklearn.model_selection import StratifiedShuffleSplit
-    from evaluate import subgroup_analysis
+    from zcor_idl.evaluate import subgroup_analysis
 
     sss = StratifiedShuffleSplit(n_splits=1, test_size=0.25, random_state=42)
     _, test_idx = next(sss.split(X, y))
@@ -541,7 +541,7 @@ def plot_subgroup_analysis(X, y, metadata, model):
 def plot_ablation(X, y, feature_names, model):
     """Grouped bar chart of CV AUC by feature set."""
     from sklearn.model_selection import train_test_split as _tts
-    from evaluate import ablation_study
+    from zcor_idl.evaluate import ablation_study
 
     X_train, _, y_train, _ = _tts(X, y, test_size=0.25, stratify=y, random_state=42)
 

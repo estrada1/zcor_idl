@@ -1,13 +1,10 @@
 """Tests for ThreeSplitTrainer and related helpers in train.py."""
 
-import os
-import sys
 import numpy as np
 import pytest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from train import (
+from zcor_idl.train import (
     ThreeSplitTrainer,
     _category_feature_indices,
     _aggregate_feature_indices,

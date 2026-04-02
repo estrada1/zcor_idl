@@ -1,7 +1,7 @@
 [project]
-name = "zcor-proto"
+name = "zcor-idl"
 version = "0.1.0"
-description = "Add your description here"
+description = "ZCoR-ILD: Zero-burden Comorbidity Risk for Interstitial Lung Disease"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -12,7 +12,17 @@ dependencies = [
     "scikit-learn>=1.8.0",
 ]
 
+[project.scripts]
+zcor-preprocess = "zcor_idl.preprocess:main"
+zcor-train      = "zcor_idl.train:main"
+zcor-evaluate   = "zcor_idl.evaluate:main"
+zcor-plot       = "zcor_idl.plot:main"
+
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths  = ["tests"]

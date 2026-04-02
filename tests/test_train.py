@@ -5,9 +5,8 @@ import sys
 import numpy as np
 import pytest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from train import compute_likelihood_ratios, evaluate_at_specificity
+from zcor_idl.train import compute_likelihood_ratios, evaluate_at_specificity
 
 
 class TestComputeLikelihoodRatios:

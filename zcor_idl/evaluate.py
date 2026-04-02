@@ -28,7 +28,7 @@ from sklearn.calibration import calibration_curve
 from sklearn.metrics import roc_auc_score
 import lightgbm as lgb
 
-from train import (
+from zcor_idl.train import (
     evaluate_at_specificity,
     train_and_evaluate,
     _category_feature_indices,

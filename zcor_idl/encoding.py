@@ -18,8 +18,8 @@ import numpy as np
 from datetime import date, timedelta
 from collections import defaultdict
 
-from icd9_categories import build_category_lookup, NUM_CATEGORIES, get_category_name
-from icd10_categories import (
+from zcor_idl.icd9 import build_category_lookup, NUM_CATEGORIES, get_category_name
+from zcor_idl.icd10 import (
     build_icd10_category_lookup,
     is_icd10_code,
     ICD10_NARROW_TARGET_CODES,

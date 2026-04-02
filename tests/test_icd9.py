@@ -2,10 +2,9 @@
 
 import os
 import sys
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import pytest
-from icd9_categories import (
+from zcor_idl.icd9 import (
     build_category_lookup,
     DISEASE_CATEGORIES,
     CATEGORY_NAMES,
