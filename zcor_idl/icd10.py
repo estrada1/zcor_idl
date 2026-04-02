@@ -11,7 +11,7 @@ Broader ILD targets: J84.1, J84.10, J84.11, J84.112, J84.113, J84.17
 Category numbering is identical to icd9_categories.py (0–50).
 """
 
-from icd9_categories import CATEGORY_NAMES, NUM_CATEGORIES, get_category_name  # noqa: F401
+from zcor_idl.icd9 import CATEGORY_NAMES, NUM_CATEGORIES, get_category_name  # noqa: F401
 
 # ── ICD-10 target codes ──────────────────────────────────────────────────────
 

@@ -5,9 +5,8 @@ import sys
 import numpy as np
 import pytest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from pfsa import PFSA, PFSAEnsemble
+from zcor_idl.pfsa import PFSA, PFSAEnsemble
 
 
 # ── Single PFSA model ─────────────────────────────────────────

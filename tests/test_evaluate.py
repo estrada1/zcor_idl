@@ -1,13 +1,10 @@
 """Tests for evaluate.py (calibration, subgroup analysis, ablation study)."""
 
-import os
-import sys
 import numpy as np
 import pytest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from evaluate import (
+from zcor_idl.evaluate import (
     calibration_analysis,
     subgroup_analysis,
     ablation_study,

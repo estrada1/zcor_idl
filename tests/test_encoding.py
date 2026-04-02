@@ -8,17 +8,16 @@ import csv
 import numpy as np
 import pytest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from datetime import date, timedelta
-from trinary_encoding import (
+from zcor_idl.encoding import (
     parse_dat_file,
     determine_prediction_point,
     encode_patient,
     INFERENCE_WINDOW_WEEKS,
     TARGET_CODES,
 )
-from icd9_categories import build_category_lookup, NUM_CATEGORIES
+from zcor_idl.icd9 import build_category_lookup, NUM_CATEGORIES
 
 
 @pytest.fixture

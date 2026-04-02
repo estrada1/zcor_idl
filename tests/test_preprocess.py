@@ -10,9 +10,8 @@ import pytest
 
 # Import module under test
 import sys
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from preprocess_cms import (
+from zcor_idl.preprocess import (
     parse_cms_date,
     format_date,
     identify_cohorts,

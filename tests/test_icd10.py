@@ -1,12 +1,9 @@
 """Tests for icd10_categories module."""
 
-import os
-import sys
 import pytest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from icd10_categories import (
+from zcor_idl.icd10 import (
     build_icd10_category_lookup,
     is_icd10_code,
     ICD10_NARROW_TARGET_CODES,

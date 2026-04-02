@@ -5,9 +5,8 @@ import sys
 import numpy as np
 import pytest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from features import (
+from zcor_idl.features import (
     compute_prevalence_scores,
     compute_sequence_features,
     compute_aggregate_features,
