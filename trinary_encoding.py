@@ -19,10 +19,40 @@ from datetime import date, timedelta
 from collections import defaultdict
 
 from icd9_categories import build_category_lookup, NUM_CATEGORIES, get_category_name
+from icd10_categories import (
+    build_icd10_category_lookup,
+    is_icd10_code,
+    ICD10_NARROW_TARGET_CODES,
+    ICD10_BROAD_TARGET_CODES,
+)
 
 # ── Configuration ──
 INFERENCE_WINDOW_WEEKS = 104  # 2 years back from prediction point
-TARGET_CODES = {"5163"}       # Narrow target (matching preprocess_cms.py)
+TARGET_CODES = {"5163"}       # Narrow ICD-9 target (matching preprocess_cms.py)
+
+# ICD-10 narrow target codes (post-2015 claims)
+TARGET_CODES_ICD10 = ICD10_NARROW_TARGET_CODES
+
+# Combined target codes (ICD-9 + ICD-10) for mixed-year data
+TARGET_CODES_COMBINED = TARGET_CODES | TARGET_CODES_ICD10
+
+
+def build_combined_category_lookup():
+    """
+    Build a classifier that handles both ICD-9 and ICD-10 codes.
+
+    Detects which coding system a code belongs to via is_icd10_code()
+    and routes to the appropriate lookup.  Returns None for unrecognised codes.
+    """
+    icd9_classify = build_category_lookup()
+    icd10_classify = build_icd10_category_lookup()
+
+    def classify(code):
+        if is_icd10_code(code):
+            return icd10_classify(code)
+        return icd9_classify(code)
+
+    return classify
 
 
 def parse_dat_file(filepath):
@@ -166,17 +196,34 @@ def encode_patient(patient, classify_fn, prediction_date, window_weeks=INFERENCE
     return series
 
 
-def encode_cohort(dat_filepath, output_dir, target_codes=TARGET_CODES,
-                  window_weeks=INFERENCE_WINDOW_WEEKS):
+def encode_cohort(dat_filepath, output_dir, target_codes=None,
+                  window_weeks=INFERENCE_WINDOW_WEEKS, icd_version="auto"):
     """
     Encode all patients from a .dat file into trinary time series.
+
+    Args:
+        dat_filepath: path to the .dat file produced by preprocess_cms.py
+        output_dir:   directory to write trinary_series.npz + patient_metadata.csv
+        target_codes: set of target ICD codes; defaults to TARGET_CODES_COMBINED
+                      (ICD-9 "5163" + ICD-10 "J84112") so both coding eras work
+        window_weeks: length of the observation window (default 104 = 2 years)
+        icd_version:  "auto" (detect per-code), "icd9", or "icd10"
 
     Saves:
     - {output_dir}/trinary_series.npz: compressed arrays
     - {output_dir}/patient_metadata.csv: patient info + labels
     """
+    if target_codes is None:
+        target_codes = TARGET_CODES_COMBINED
+
     os.makedirs(output_dir, exist_ok=True)
-    classify = build_category_lookup()
+
+    if icd_version == "icd9":
+        classify = build_category_lookup()
+    elif icd_version == "icd10":
+        classify = build_icd10_category_lookup()
+    else:
+        classify = build_combined_category_lookup()
 
     print(f"Parsing {dat_filepath}...")
     patients = parse_dat_file(dat_filepath)

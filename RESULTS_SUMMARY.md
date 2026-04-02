@@ -42,8 +42,9 @@ This project reimplements the Zero-burden Comorbidity Risk score for Interstitia
 | Years of data | 15 | 3 |
 | Patients | ~2.6M | 62,102 |
 | Positive cases | 5,765 | 743 |
-| ICD systems | ICD-9 + ICD-10 | ICD-9 only |
-| Target definition | ICD-9 516.31 / ICD-10 J84.112 | ICD-9 516.3 (broader) |
+| ICD systems | ICD-9 + ICD-10 | ICD-9 only (SynPUF predates 2015 transition) |
+| ICD-10 support | ✓ | ✓ (pipeline ready; awaits post-2015 data) |
+| Target definition | ICD-9 516.31 / ICD-10 J84.112 | ICD-9 516.3 (broader proxy) |
 
 ---
 
@@ -71,7 +72,13 @@ The pipeline follows the same architecture as the paper:
 
    The paper reports 667 features; the difference comes from rare-score variants and additional aggregate features not explicitly described.
 
-5. **LightGBM training** (`train.py`): 5-fold stratified cross-validation + 75/25 held-out evaluation. Class imbalance handled via `scale_pos_weight`.
+5. **LightGBM training** (`train.py`): Two modes available:
+   - `--mode single` (default): 5-fold stratified CV + 75/25 held-out evaluation
+   - `--mode three-split`: Paper's three-split pipeline — 40% hyper-training, 30% per-category (51 LGBM models, one per phenotype), 30% aggregation (final LGBM on 51 probability meta-features)
+
+6. **ICD-10 support** (`icd10_categories.py`): Full ICD-10-CM → 51 category mapping for post-2015 data. Primary target J84.112 (IPF); combined classifier auto-detects coding system per code, enabling transparent processing of mixed ICD-9/ICD-10 datasets.
+
+7. **Evaluation suite** (`evaluate.py`): Calibration (reliability diagram, ECE/MCE), subgroup analysis (AUC/sensitivity/PPV by sex and age group), ablation study (5-level feature group comparison).
 
 Total runtime: ~10 minutes on Apple Silicon.
 
